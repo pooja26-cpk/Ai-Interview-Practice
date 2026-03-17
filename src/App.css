@@ -579,6 +579,31 @@
   gap: 0.9rem;
 }
 
+
+.result-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.practice-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.practice-item {
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
 .question-list {
   list-style: none;
   padding: 0;

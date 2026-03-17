@@ -26,6 +26,54 @@ function saveHistory(history) {
   }
 }
 
+function mapFocusArea(answer, feedback, keywordCoverage) {
+  const trimmed = (answer || '').trim()
+  const text = `${feedback || ''} ${trimmed}`.toLowerCase()
+  const wordCount = trimmed ? trimmed.split(/\s+/).length : 0
+
+  if (
+    text.includes('metric') ||
+    text.includes('quantifiable') ||
+    text.includes('data') ||
+    (!/\d+/.test(trimmed) && wordCount >= 40)
+  ) {
+    return 'metrics'
+  }
+
+  if (
+    text.includes('structure') ||
+    text.includes('star') ||
+    wordCount < 35 ||
+    !trimmed.includes('.')
+  ) {
+    return 'structure'
+  }
+
+  if (
+    text.includes('key points') ||
+    text.includes('relevant') ||
+    keywordCoverage < 0.4
+  ) {
+    return 'relevance'
+  }
+
+  return 'clarity'
+}
+
+function buildPracticeTask(item) {
+  const prompts = {
+    structure:
+      'Rewrite your answer using a clear STAR flow (Situation, Task, Action, Result) with one concise paragraph per step.',
+    clarity:
+      'Rewrite your answer in 4-6 short sentences with direct language and one specific example that is easy to follow.',
+    metrics:
+      'Rewrite your answer and add at least two measurable outcomes (%, $, time saved, users impacted) tied to your actions.',
+    relevance:
+      'Rewrite your answer so each paragraph maps directly to the question, reusing at least three key terms from the prompt.',
+  }
+  return `Question: ${item.question}\n${prompts[item.focusArea]}`
+}
+
 function scoreAnswer(answer, question, advancedMode = false) {
   const trimmed = (answer || '').trim()
   if (!trimmed) {
@@ -83,7 +131,12 @@ function scoreAnswer(answer, question, advancedMode = false) {
     }
   }
 
-  return { score: Math.round(total * 10) / 10, feedback }
+  return {
+    score: Math.round(total * 10) / 10,
+    feedback,
+    keywordMatches,
+    keywordTotal: keywords.length,
+  }
 }
 
 export function InterviewProvider({ children }) {
@@ -104,13 +157,17 @@ export function InterviewProvider({ children }) {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
+  function startInterview(type, options = {}) {
     const nextType = type || QUESTION_TYPES.technical
     const list = questionsByType[nextType] || []
+    const targetedList = options.questionId
+      ? list.filter((question) => question.id === options.questionId)
+      : list
+    const nextList = targetedList.length ? targetedList : list
     setSelectedType(nextType)
-    setQuestions(list)
+    setQuestions(nextList)
     setCurrentIndex(0)
-    setAnswers(Array(list.length).fill(''))
+    setAnswers(Array(nextList.length).fill(''))
     setLastResult(null)
   }
 
@@ -135,9 +192,26 @@ export function InterviewProvider({ children }) {
         answer,
         score: scored.score,
         feedback: scored.feedback,
+        keywordMatches: scored.keywordMatches,
+        keywordTotal: scored.keywordTotal,
         type: selectedType,
       }
     })
+    const coachingPlan = items
+      .filter((item) => item.score < 6.5)
+      .map((item) => {
+        const keywordCoverage = item.keywordTotal
+          ? item.keywordMatches / item.keywordTotal
+          : 0
+        const focusArea = mapFocusArea(item.answer, item.feedback, keywordCoverage)
+        return {
+          questionId: item.id,
+          question: item.question,
+          focusArea,
+          practiceTask: buildPracticeTask({ ...item, focusArea }),
+          targetScore: Math.min(10, Math.round((item.score + 1.5) * 10) / 10),
+        }
+      })
     const average =
       items.reduce((sum, item) => sum + item.score, 0) /
       Math.max(items.length, 1)
@@ -148,6 +222,7 @@ export function InterviewProvider({ children }) {
       createdAt: new Date().toISOString(),
       averageScore: rounded,
       items,
+      coachingPlan,
     }
     return result
   }
@@ -216,4 +291,3 @@ export function useInterview() {
   }
   return ctx
 }
-
