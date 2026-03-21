@@ -67,7 +67,27 @@ function Result() {
               <span className="summary-label">Best score</span>
               <span className="summary-number">{best.toFixed(1)}</span>
             </div>
+            {result.codingSummary ? (
+              <>
+                <div className="summary-item">
+                  <span className="summary-label">Avg pass rate</span>
+                  <span className="summary-number">
+                    {result.codingSummary.averagePassRate}%
+                  </span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Public tests</span>
+                  <span className="summary-number">
+                    {result.codingSummary.totalPassedPublicTests}/
+                    {result.codingSummary.totalPublicTests}
+                  </span>
+                </div>
+              </>
+            ) : null}
           </div>
+          {result.codingSummary?.failedCasesSummary ? (
+            <p className="question-feedback">{result.codingSummary.failedCasesSummary}</p>
+          ) : null}
           <div className="summary-actions">
             <button
               className="primary-button"
@@ -95,7 +115,27 @@ function Result() {
                   <span className="question-score">{item.score.toFixed(1)}/10</span>
                 </div>
                 <p className="question-feedback">{item.feedback}</p>
-                <p className="question-answer">{item.answer || 'No answer recorded.'}</p>
+                {typeof item.passRate === 'number' ? (
+                  <div className="coding-result-meta">
+                    <span>Language: {item.language}</span>
+                    <span>Pass rate: {item.passRate}%</span>
+                    <span>
+                      Public tests: {item.passedPublicTests}/{item.totalPublicTests}
+                    </span>
+                  </div>
+                ) : null}
+                {item.answer ? (
+                  typeof item.passRate === 'number' ? (
+                    <pre className="question-answer-code">{item.answer}</pre>
+                  ) : (
+                    <p className="question-answer">{item.answer}</p>
+                  )
+                ) : (
+                  <p className="question-answer">No answer recorded.</p>
+                )}
+                {typeof item.passRate === 'number' ? (
+                  <p className="question-answer">{item.failedCasesSummary}</p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -106,4 +146,3 @@ function Result() {
 }
 
 export default Result
-
