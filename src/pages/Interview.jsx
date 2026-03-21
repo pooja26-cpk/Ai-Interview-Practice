@@ -49,7 +49,7 @@ function Interview() {
   }, [
     timeLeft,
     currentQuestion,
-    questions.length,
+    questions,
     currentIndex,
     goToNext,
     finishInterview,
@@ -60,7 +60,7 @@ function Interview() {
     if (!questions.length) {
       navigate('/setup')
     }
-  }, [questions.length, navigate])
+  }, [questions, navigate])
 
   if (!currentQuestion) {
     return (

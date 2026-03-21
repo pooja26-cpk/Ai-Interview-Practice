@@ -1,9 +1,78 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { questionsByType, QUESTION_TYPES } from '../data/questions'
 
 const InterviewContext = createContext(null)
 
 const STORAGE_KEY = 'ai-interview-history'
+const PASSING_SCORE = 6
+
+function normalizeTopicTags(question, fallbackType) {
+  if (Array.isArray(question?.topicTags) && question.topicTags.length) {
+    return question.topicTags
+  }
+  if (question?.category) {
+    return [question.category]
+  }
+  if (fallbackType) {
+    return [fallbackType]
+  }
+  return []
+}
+
+function normalizeDifficulty(question, fallbackType) {
+  if (typeof question?.difficulty === 'string' && question.difficulty.trim()) {
+    return question.difficulty
+  }
+  return fallbackType === QUESTION_TYPES.coding ? 'unknown' : 'standard'
+}
+
+function normalizeHistoryEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  const type = entry.type || QUESTION_TYPES.technical
+  const rawItems = Array.isArray(entry.items) ? entry.items : []
+  const items = rawItems.map((item, index) => {
+    const score = Number.isFinite(item?.score) ? item.score : 0
+    const category = item?.category || item?.type || type
+    const topicTags = normalizeTopicTags(item, type)
+    const difficulty = normalizeDifficulty(item, type)
+    return {
+      id: item?.id || `${entry.id || entry.createdAt || 'session'}-${index}`,
+      question: item?.question || 'Untitled question',
+      answer: item?.answer || '',
+      score,
+      feedback: item?.feedback || '',
+      type: item?.type || type,
+      category,
+      topicTags,
+      difficulty,
+      passed: typeof item?.passed === 'boolean' ? item.passed : score >= PASSING_SCORE,
+    }
+  })
+
+  const averageScore = Number.isFinite(entry.averageScore)
+    ? entry.averageScore
+    : Math.round(
+        (items.reduce((sum, item) => sum + item.score, 0) /
+          Math.max(items.length, 1)) * 10,
+      ) / 10
+
+  const analytics = {
+    categories: [...new Set(items.map((item) => item.category).filter(Boolean))],
+    topicTags: [...new Set(items.flatMap((item) => item.topicTags || []).filter(Boolean))],
+    difficulties: [...new Set(items.map((item) => item.difficulty).filter(Boolean))],
+    ...(entry.analytics || {}),
+  }
+
+  return {
+    id: entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    createdAt: entry.createdAt || new Date().toISOString(),
+    averageScore,
+    items,
+    analytics,
+  }
+}
 
 function loadHistory() {
   if (typeof window === 'undefined') return []
@@ -12,8 +81,8 @@ function loadHistory() {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch (error) {
+    return parsed.map((entry) => normalizeHistoryEntry(entry)).filter(Boolean)
+  } catch {
     return []
   }
 }
@@ -22,7 +91,8 @@ function saveHistory(history) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
-  } catch (error) {
+  } catch {
+    // Ignore storage write failures (private mode, quota, etc.)
   }
 }
 
@@ -57,17 +127,13 @@ function scoreAnswer(answer, question, advancedMode = false) {
   }
 
   if (advancedMode) {
-    // Advanced checks
     let advancedScore = 0
-    // Check for metrics/numbers
     if (/\d+/.test(trimmed)) advancedScore += 1
-    // Check for action verbs
     const actionVerbs = ['led', 'developed', 'implemented', 'improved', 'increased', 'reduced', 'managed', 'created', 'designed', 'built']
-    actionVerbs.forEach(verb => {
+    actionVerbs.forEach((verb) => {
       if (text.includes(verb)) advancedScore += 0.5
     })
     advancedScore = Math.min(2, advancedScore)
-    // Check for structure (paragraphs)
     const paragraphs = trimmed.split('\n\n').length
     if (paragraphs >= 2) advancedScore += 1
 
@@ -86,49 +152,98 @@ function scoreAnswer(answer, question, advancedMode = false) {
   return { score: Math.round(total * 10) / 10, feedback }
 }
 
+function filterQuestions(list, filters = {}) {
+  const { categories, topicTags, difficulty, questionIds } = filters
+  const normalizedIds = Array.isArray(questionIds) ? new Set(questionIds) : null
+  const normalizedCategories = Array.isArray(categories)
+    ? new Set(categories.map((value) => value.toLowerCase()))
+    : null
+  const normalizedTags = Array.isArray(topicTags)
+    ? new Set(topicTags.map((value) => value.toLowerCase()))
+    : null
+  const normalizedDifficulty = typeof difficulty === 'string' ? difficulty.toLowerCase() : null
+
+  return list.filter((question) => {
+    if (normalizedIds && normalizedIds.size && !normalizedIds.has(question.id)) {
+      return false
+    }
+    if (
+      normalizedCategories &&
+      normalizedCategories.size &&
+      !normalizedCategories.has((question.category || '').toLowerCase())
+    ) {
+      return false
+    }
+    if (normalizedTags && normalizedTags.size) {
+      const tags = normalizeTopicTags(question).map((tag) => tag.toLowerCase())
+      const hasTag = tags.some((tag) => normalizedTags.has(tag))
+      if (!hasTag) return false
+    }
+    if (
+      normalizedDifficulty &&
+      normalizeDifficulty(question).toLowerCase() !== normalizedDifficulty
+    ) {
+      return false
+    }
+    return true
+  })
+}
+
 export function InterviewProvider({ children }) {
   const [selectedType, setSelectedType] = useState(QUESTION_TYPES.technical)
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState([])
-  const [history, setHistory] = useState([])
+  const [history, setHistory] = useState(() => loadHistory())
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
-
-  useEffect(() => {
-    const initialHistory = loadHistory()
-    setHistory(initialHistory)
-  }, [])
+  const [activePracticeConfig, setActivePracticeConfig] = useState(null)
 
   useEffect(() => {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
+  const startInterview = useCallback((type, config = {}) => {
     const nextType = type || QUESTION_TYPES.technical
-    const list = questionsByType[nextType] || []
+    const sourceList = questionsByType[nextType] || []
+    const filtered = filterQuestions(sourceList, config)
+    const list = filtered.length ? filtered : sourceList
     setSelectedType(nextType)
     setQuestions(list)
     setCurrentIndex(0)
     setAnswers(Array(list.length).fill(''))
     setLastResult(null)
-  }
+    setActivePracticeConfig(
+      Object.keys(config).length
+        ? {
+            ...config,
+            type: nextType,
+            questionIds: list.map((question) => question.id),
+          }
+        : null,
+    )
+  }, [])
 
-  function updateAnswer(text) {
-    setAnswers((prev) => {
-      const copy = [...prev]
-      copy[currentIndex] = text
-      return copy
-    })
-  }
+  const updateAnswer = useCallback(
+    (text) => {
+      setAnswers((prev) => {
+        const copy = [...prev]
+        copy[currentIndex] = text
+        return copy
+      })
+    },
+    [currentIndex],
+  )
 
-  function computeResult() {
+  const computeResult = useCallback(() => {
     if (!questions.length) {
       return null
     }
     const items = questions.map((question, index) => {
       const answer = answers[index] || ''
       const scored = scoreAnswer(answer, question, advancedMode)
+      const topicTags = normalizeTopicTags(question, selectedType)
+      const difficulty = normalizeDifficulty(question, selectedType)
       return {
         id: question.id,
         question: question.text,
@@ -136,43 +251,54 @@ export function InterviewProvider({ children }) {
         score: scored.score,
         feedback: scored.feedback,
         type: selectedType,
+        category: question.category || selectedType,
+        topicTags,
+        difficulty,
+        passed: scored.score >= PASSING_SCORE,
       }
     })
     const average =
       items.reduce((sum, item) => sum + item.score, 0) /
       Math.max(items.length, 1)
     const rounded = Math.round(average * 10) / 10
-    const result = {
+    return {
       id: `${Date.now()}`,
       type: selectedType,
       createdAt: new Date().toISOString(),
       averageScore: rounded,
       items,
+      analytics: {
+        categories: [...new Set(items.map((item) => item.category).filter(Boolean))],
+        topicTags: [...new Set(items.flatMap((item) => item.topicTags || []).filter(Boolean))],
+        difficulties: [...new Set(items.map((item) => item.difficulty).filter(Boolean))],
+        practiceMode: activePracticeConfig?.label || 'full-session',
+      },
     }
-    return result
-  }
+  }, [activePracticeConfig, advancedMode, answers, questions, selectedType])
 
-  function goToNext() {
+  const finishInterview = useCallback(() => {
+    const result = computeResult()
+    if (!result) return
+    setLastResult(result)
+    setHistory((prev) => [...prev, result])
+    setActivePracticeConfig(null)
+  }, [computeResult])
+
+  const goToNext = useCallback(() => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((index) => index + 1)
     } else {
       finishInterview()
     }
-  }
+  }, [currentIndex, finishInterview, questions.length])
 
-  function finishInterview() {
-    const result = computeResult()
-    if (!result) return
-    setLastResult(result)
-    setHistory((prev) => [...prev, result])
-  }
-
-  function resetInterview() {
+  const resetInterview = useCallback(() => {
     setQuestions([])
     setAnswers([])
     setCurrentIndex(0)
     setLastResult(null)
-  }
+    setActivePracticeConfig(null)
+  }, [])
 
   const value = useMemo(
     () => ({
@@ -187,6 +313,7 @@ export function InterviewProvider({ children }) {
       lastResult,
       advancedMode,
       setAdvancedMode,
+      activePracticeConfig,
       startInterview,
       updateAnswer,
       goToNext,
@@ -201,6 +328,12 @@ export function InterviewProvider({ children }) {
       history,
       lastResult,
       advancedMode,
+      activePracticeConfig,
+      startInterview,
+      updateAnswer,
+      goToNext,
+      finishInterview,
+      resetInterview,
     ],
   )
 
@@ -216,4 +349,3 @@ export function useInterview() {
   }
   return ctx
 }
-

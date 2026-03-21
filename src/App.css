@@ -700,3 +700,124 @@
     margin-top: 2rem;
   }
 }
+
+.dashboard-grid {
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-panels-secondary {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.analytics-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.quick-actions-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.metric-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.metric-row-warning {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(69, 10, 10, 0.25);
+}
+
+.metric-title {
+  font-weight: 600;
+}
+
+.metric-subtitle {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.metric-value {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.empty-note {
+  margin: 0;
+  color: #9ca3af;
+}
+
+.history-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.history-main-stacked {
+  align-items: flex-start;
+}
+
+.history-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.history-topic-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  color: #cbd5f5;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.24);
+}
+
+.secondary-button:disabled,
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-panels,
+  .dashboard-panels-secondary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
