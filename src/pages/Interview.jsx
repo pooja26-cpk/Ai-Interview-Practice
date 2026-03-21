@@ -20,6 +20,7 @@ function Interview() {
     updateAnswer,
     goToNext,
     finishInterview,
+    sessionMode,
   } = useInterview()
   const [timeLeft, setTimeLeft] = useState(
     currentQuestion ? currentQuestion.timeLimit || 90 : 0,
@@ -105,8 +106,11 @@ function Interview() {
       </div>
       <div className="card interview-card">
         <div className="interview-header">
-          <div className="badge">
-            Question {currentIndex + 1} of {questions.length}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="badge">
+              Question {currentIndex + 1} of {questions.length}
+            </div>
+            {sessionMode === 'retry' ? <div className="badge badge-soft">Retry Session</div> : null}
           </div>
           <div className="timer" data-status={timeLeft <= 10 ? 'danger' : 'default'}>
             <span className="timer-label">Time left</span>
