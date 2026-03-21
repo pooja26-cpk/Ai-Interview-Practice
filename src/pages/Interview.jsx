@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useInterview } from '../context/InterviewContext'
+import { useInterview } from '../context/useInterview'
+import { QUESTION_TYPES } from '../data/questions'
 
 function formatTime(seconds) {
   const clamped = Math.max(0, seconds)
@@ -20,23 +21,23 @@ function Interview() {
     updateAnswer,
     goToNext,
     finishInterview,
+    selectedType,
+    codingSetup,
   } = useInterview()
-  const [timeLeft, setTimeLeft] = useState(
-    currentQuestion ? currentQuestion.timeLimit || 90 : 0,
-  )
-
-  // Reset handled via user actions and timer tick to avoid synchronous setState in effects
+  const isTimed = Boolean(currentQuestion?.timeLimit)
+  const initialTime = currentQuestion ? currentQuestion.timeLimit || 0 : 0
+  const [timeLeft, setTimeLeft] = useState(initialTime)
 
   useEffect(() => {
-    if (!currentQuestion || !questions.length) {
+    if (!currentQuestion || !questions.length || !isTimed) {
       return
     }
     const id = setTimeout(() => {
       if (timeLeft <= 1) {
         if (currentIndex < questions.length - 1) {
           const nextQuestion = questions[currentIndex + 1]
+          setTimeLeft(nextQuestion?.timeLimit || 0)
           goToNext()
-          setTimeLeft(nextQuestion?.timeLimit || 90)
         } else {
           finishInterview()
           navigate('/result')
@@ -49,11 +50,13 @@ function Interview() {
   }, [
     timeLeft,
     currentQuestion,
+    questions,
     questions.length,
     currentIndex,
     goToNext,
     finishInterview,
     navigate,
+    isTimed,
   ])
 
   useEffect(() => {
@@ -61,6 +64,14 @@ function Interview() {
       navigate('/setup')
     }
   }, [questions.length, navigate])
+
+  const codingSummary = useMemo(() => {
+    if (selectedType !== QUESTION_TYPES.coding) {
+      return null
+    }
+
+    return `${codingSetup.language} • ${codingSetup.difficulty} • ${codingSetup.mode}`
+  }, [codingSetup, selectedType])
 
   if (!currentQuestion) {
     return (
@@ -90,7 +101,7 @@ function Interview() {
       return
     }
     const nextQuestion = questions[currentIndex + 1]
-    setTimeLeft(nextQuestion?.timeLimit || 90)
+    setTimeLeft(nextQuestion?.timeLimit || 0)
     goToNext()
   }
 
@@ -105,13 +116,25 @@ function Interview() {
       </div>
       <div className="card interview-card">
         <div className="interview-header">
-          <div className="badge">
-            Question {currentIndex + 1} of {questions.length}
+          <div>
+            <div className="badge">
+              Question {currentIndex + 1} of {questions.length}
+            </div>
+            {codingSummary ? (
+              <p className="interview-meta">Coding setup: {codingSummary}</p>
+            ) : null}
           </div>
-          <div className="timer" data-status={timeLeft <= 10 ? 'danger' : 'default'}>
-            <span className="timer-label">Time left</span>
-            <span className="timer-value">{formatTime(timeLeft)}</span>
-          </div>
+          {isTimed ? (
+            <div className="timer" data-status={timeLeft <= 10 ? 'danger' : 'default'}>
+              <span className="timer-label">Time left</span>
+              <span className="timer-value">{formatTime(timeLeft)}</span>
+            </div>
+          ) : (
+            <div className="timer" data-status="default">
+              <span className="timer-label">Mode</span>
+              <span className="timer-value">Untimed</span>
+            </div>
+          )}
         </div>
         <div className="progress-track">
           <div className="progress-bar" style={{ width: `${progress}%` }} />

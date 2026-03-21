@@ -350,6 +350,10 @@
   gap: 0.8rem;
 }
 
+.option-grid-wide {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .option-card {
   border-radius: 0.9rem;
   border: 1px solid rgba(55, 65, 81, 0.8);
@@ -385,6 +389,97 @@
 .option-description {
   font-size: 0.8rem;
   color: #d1d5db;
+}
+
+.coding-setup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.select-input {
+  width: 100%;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+  background: rgba(15, 23, 42, 0.85);
+  padding: 0.75rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #e5e7eb;
+}
+
+.select-input:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.tag-chip,
+.pill-toggle {
+  border-radius: 999px;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+  background: rgba(15, 23, 42, 0.85);
+  color: #d1d5db;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.tag-chip:hover,
+.pill-toggle:hover {
+  border-color: rgba(96, 165, 250, 0.9);
+  transform: translateY(-1px);
+}
+
+.tag-chip-active,
+.pill-toggle-active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(96, 165, 250, 0.9);
+  color: #dbeafe;
+}
+
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.field-hint,
+.form-error,
+.interview-meta,
+.setup-summary-text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+
+.form-error {
+  color: #fda4af;
+}
+
+.setup-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .form-footer {
@@ -687,7 +782,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .option-grid {
+  .option-grid,
+  .option-grid-wide,
+  .field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
