@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { useInterview } from '../context/InterviewContext'
 
+const WEAK_SCORE_THRESHOLD = 6
+
 function formatDate(value) {
   const date = new Date(value)
   return date.toLocaleString(undefined, {
@@ -14,7 +16,7 @@ function formatDate(value) {
 
 function Result() {
   const navigate = useNavigate()
-  const { lastResult, history } = useInterview()
+  const { lastResult, history, startInterview } = useInterview()
   const result = lastResult || history[history.length - 1]
 
   if (!result) {
@@ -38,6 +40,15 @@ function Result() {
   const best = history.length
     ? Math.max(...history.map((item) => item.averageScore))
     : result.averageScore
+  const weakQuestionIds = result.items
+    .filter((item) => item.score < WEAK_SCORE_THRESHOLD)
+    .map((item) => item.id)
+
+  function handleRetryWeakQuestions() {
+    if (!weakQuestionIds.length) return
+    startInterview(result.type, weakQuestionIds)
+    navigate('/interview')
+  }
 
   return (
     <div className="page">
@@ -75,6 +86,14 @@ function Result() {
               onClick={() => navigate('/setup')}
             >
               Practice again
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleRetryWeakQuestions}
+              disabled={!weakQuestionIds.length}
+            >
+              Retry weak questions
             </button>
             <button
               className="secondary-button"

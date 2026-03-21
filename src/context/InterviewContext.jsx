@@ -94,6 +94,7 @@ export function InterviewProvider({ children }) {
   const [history, setHistory] = useState([])
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
+  const [sessionMode, setSessionMode] = useState('full')
 
   useEffect(() => {
     const initialHistory = loadHistory()
@@ -104,13 +105,20 @@ export function InterviewProvider({ children }) {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
+  function startInterview(type, questionSubset) {
     const nextType = type || QUESTION_TYPES.technical
     const list = questionsByType[nextType] || []
+    const hasSubset = Array.isArray(questionSubset)
+    const subsetLookup = new Set(questionSubset || [])
+    const nextQuestions = hasSubset
+      ? list.filter((question) => subsetLookup.has(question.id))
+      : list
+
     setSelectedType(nextType)
-    setQuestions(list)
+    setSessionMode(hasSubset ? 'retry' : 'full')
+    setQuestions(nextQuestions)
     setCurrentIndex(0)
-    setAnswers(Array(list.length).fill(''))
+    setAnswers(Array(nextQuestions.length).fill(''))
     setLastResult(null)
   }
 
@@ -145,6 +153,7 @@ export function InterviewProvider({ children }) {
     const result = {
       id: `${Date.now()}`,
       type: selectedType,
+      mode: sessionMode,
       createdAt: new Date().toISOString(),
       averageScore: rounded,
       items,
@@ -172,6 +181,7 @@ export function InterviewProvider({ children }) {
     setAnswers([])
     setCurrentIndex(0)
     setLastResult(null)
+    setSessionMode('full')
   }
 
   const value = useMemo(
@@ -185,6 +195,7 @@ export function InterviewProvider({ children }) {
       currentAnswer: answers[currentIndex] || '',
       history,
       lastResult,
+      sessionMode,
       advancedMode,
       setAdvancedMode,
       startInterview,
@@ -200,6 +211,7 @@ export function InterviewProvider({ children }) {
       answers,
       history,
       lastResult,
+      sessionMode,
       advancedMode,
     ],
   )
@@ -216,4 +228,3 @@ export function useInterview() {
   }
   return ctx
 }
-
