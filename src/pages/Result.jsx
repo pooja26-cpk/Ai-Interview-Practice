@@ -14,8 +14,21 @@ function formatDate(value) {
 
 function Result() {
   const navigate = useNavigate()
-  const { lastResult, history } = useInterview()
+  const { lastResult, history, startInterview } = useInterview()
   const result = lastResult || history[history.length - 1]
+
+  async function copyPracticePrompt(prompt) {
+    try {
+      await navigator.clipboard.writeText(prompt)
+    } catch {
+      // Clipboard may be unavailable in some browser contexts.
+    }
+  }
+
+  function handleRetry(task) {
+    startInterview(result.type, { questionId: task.questionId })
+    navigate('/interview')
+  }
 
   if (!result) {
     return (
@@ -38,6 +51,8 @@ function Result() {
   const best = history.length
     ? Math.max(...history.map((item) => item.averageScore))
     : result.averageScore
+
+  const coachingPlan = Array.isArray(result.coachingPlan) ? result.coachingPlan : []
 
   return (
     <div className="page">
@@ -85,20 +100,61 @@ function Result() {
             </button>
           </div>
         </div>
-        <div className="card result-details">
-          <h2>Question breakdown</h2>
-          <ul className="question-list">
-            {result.items.map((item) => (
-              <li key={item.id} className="question-item">
-                <div className="question-item-header">
-                  <h3>{item.question}</h3>
-                  <span className="question-score">{item.score.toFixed(1)}/10</span>
-                </div>
-                <p className="question-feedback">{item.feedback}</p>
-                <p className="question-answer">{item.answer || 'No answer recorded.'}</p>
-              </li>
-            ))}
-          </ul>
+        <div className="result-stack">
+          <div className="card result-details">
+            <h2>Next Practice Plan</h2>
+            {coachingPlan.length ? (
+              <ul className="practice-list">
+                {coachingPlan.map((task) => (
+                  <li key={task.questionId} className="practice-item">
+                    <div className="question-item-header">
+                      <h3>{task.question}</h3>
+                      <span className="question-score">Target {task.targetScore.toFixed(1)}/10</span>
+                    </div>
+                    <p className="question-feedback">
+                      Focus area: <strong>{task.focusArea}</strong>
+                    </p>
+                    <p className="question-answer">{task.practiceTask}</p>
+                    <div className="summary-actions">
+                      <button
+                        className="primary-button"
+                        type="button"
+                        onClick={() => handleRetry(task)}
+                      >
+                        Retry this question
+                      </button>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => copyPracticePrompt(task.practiceTask)}
+                      >
+                        Copy practice prompt
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="question-feedback">
+                Great work. No weak areas were detected in this session.
+              </p>
+            )}
+          </div>
+          <div className="card result-details">
+            <h2>Question breakdown</h2>
+            <ul className="question-list">
+              {result.items.map((item) => (
+                <li key={item.id} className="question-item">
+                  <div className="question-item-header">
+                    <h3>{item.question}</h3>
+                    <span className="question-score">{item.score.toFixed(1)}/10</span>
+                  </div>
+                  <p className="question-feedback">{item.feedback}</p>
+                  <p className="question-answer">{item.answer || 'No answer recorded.'}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -106,4 +162,3 @@ function Result() {
 }
 
 export default Result
-
