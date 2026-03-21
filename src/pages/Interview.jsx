@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInterview } from '../context/InterviewContext'
 
@@ -17,15 +17,37 @@ function Interview() {
     currentIndex,
     currentQuestion,
     currentAnswer,
+    currentCodeSubmission,
     updateAnswer,
+    updateCodeSubmission,
     goToNext,
     finishInterview,
   } = useInterview()
   const [timeLeft, setTimeLeft] = useState(
     currentQuestion ? currentQuestion.timeLimit || 90 : 0,
   )
+  const [sampleTestResult, setSampleTestResult] = useState('')
 
-  // Reset handled via user actions and timer tick to avoid synchronous setState in effects
+  const isCodingQuestion = currentQuestion?.taskType === 'coding'
+
+  const defaultCodingTemplate = useMemo(() => {
+    if (!isCodingQuestion) return ''
+    return (
+      currentQuestion?.starterCode ||
+      '// Write your solution here\nfunction solve(input) {\n  return input\n}'
+    )
+  }, [currentQuestion, isCodingQuestion])
+
+  useEffect(() => {
+    if (isCodingQuestion && !currentCodeSubmission?.trim() && defaultCodingTemplate) {
+      updateCodeSubmission(defaultCodingTemplate)
+    }
+  }, [
+    isCodingQuestion,
+    currentCodeSubmission,
+    defaultCodingTemplate,
+    updateCodeSubmission,
+  ])
 
   useEffect(() => {
     if (!currentQuestion || !questions.length) {
@@ -37,6 +59,7 @@ function Interview() {
           const nextQuestion = questions[currentIndex + 1]
           goToNext()
           setTimeLeft(nextQuestion?.timeLimit || 90)
+          setSampleTestResult('')
         } else {
           finishInterview()
           navigate('/result')
@@ -49,6 +72,7 @@ function Interview() {
   }, [
     timeLeft,
     currentQuestion,
+    questions,
     questions.length,
     currentIndex,
     goToNext,
@@ -91,7 +115,36 @@ function Interview() {
     }
     const nextQuestion = questions[currentIndex + 1]
     setTimeLeft(nextQuestion?.timeLimit || 90)
+    setSampleTestResult('')
     goToNext()
+  }
+
+  function runSampleTests() {
+    const tests = currentQuestion.sampleTests || []
+    if (!tests.length) {
+      setSampleTestResult('No sample tests configured for this coding task yet.')
+      return
+    }
+
+    const code = (currentCodeSubmission || '').toLowerCase()
+    const failed = tests.filter((test) => {
+      const snippets = test.requiredSnippets || []
+      return !snippets.every((snippet) => code.includes(String(snippet).toLowerCase()))
+    })
+
+    if (!failed.length) {
+      setSampleTestResult(`All ${tests.length} sample tests passed (scaffold check).`)
+    } else {
+      setSampleTestResult(
+        `${tests.length - failed.length}/${tests.length} tests passed. Failing: ${failed
+          .map((test) => test.name || 'Unnamed case')
+          .join(', ')}`,
+      )
+    }
+  }
+
+  function submitSolution() {
+    setSampleTestResult('Solution captured. Use Next question or Finish interview to continue.')
   }
 
   return (
@@ -116,18 +169,82 @@ function Interview() {
         <div className="progress-track">
           <div className="progress-bar" style={{ width: `${progress}%` }} />
         </div>
-        <h2 className="question-text">{currentQuestion.text}</h2>
-        <label className="field-label" htmlFor="answer">
-          Your answer
-        </label>
-        <textarea
-          id="answer"
-          className="answer-input"
-          rows={8}
-          value={currentAnswer}
-          onChange={(event) => updateAnswer(event.target.value)}
-          placeholder="Use clear structure, examples, and outcomes."
-        />
+
+        {isCodingQuestion ? (
+          <>
+            <h2 className="question-text">{currentQuestion.text}</h2>
+            <section className="coding-section">
+              <h3>Problem statement</h3>
+              <p>{currentQuestion.problemStatement || currentQuestion.text}</p>
+            </section>
+
+            {Array.isArray(currentQuestion.constraints) &&
+            currentQuestion.constraints.length ? (
+              <section className="coding-section">
+                <h3>Constraints</h3>
+                <ul>
+                  {currentQuestion.constraints.map((constraint) => (
+                    <li key={constraint}>{constraint}</li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {Array.isArray(currentQuestion.examples) && currentQuestion.examples.length ? (
+              <section className="coding-section">
+                <h3>Examples</h3>
+                <ul>
+                  {currentQuestion.examples.map((example) => (
+                    <li key={`${example.input}-${example.output}`}>
+                      <strong>Input:</strong> {example.input} · <strong>Output:</strong>{' '}
+                      {example.output}
+                      {example.explanation ? ` · ${example.explanation}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <label className="field-label" htmlFor="code-answer">
+              Your solution
+            </label>
+            <textarea
+              id="code-answer"
+              className="answer-input code-editor-input"
+              rows={12}
+              value={currentCodeSubmission}
+              onChange={(event) => updateCodeSubmission(event.target.value)}
+              spellCheck={false}
+            />
+
+            <div className="coding-actions">
+              <button className="secondary-button" type="button" onClick={runSampleTests}>
+                Run sample tests
+              </button>
+              <button className="primary-button" type="button" onClick={submitSolution}>
+                Submit solution
+              </button>
+            </div>
+
+            {sampleTestResult ? <p className="sample-test-result">{sampleTestResult}</p> : null}
+          </>
+        ) : (
+          <>
+            <h2 className="question-text">{currentQuestion.text}</h2>
+            <label className="field-label" htmlFor="answer">
+              Your answer
+            </label>
+            <textarea
+              id="answer"
+              className="answer-input"
+              rows={8}
+              value={currentAnswer}
+              onChange={(event) => updateAnswer(event.target.value)}
+              placeholder="Use clear structure, examples, and outcomes."
+            />
+          </>
+        )}
+
         <div className="form-footer">
           <button
             className="secondary-button"
@@ -136,11 +253,7 @@ function Interview() {
           >
             End session
           </button>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={handleNext}
-          >
+          <button className="primary-button" type="button" onClick={handleNext}>
             {isLast ? 'Finish interview' : 'Next question'}
           </button>
         </div>

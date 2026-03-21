@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useEffect, useState } from 'react'
 import { questionsByType, QUESTION_TYPES } from '../data/questions'
 
 const InterviewContext = createContext(null)
@@ -13,7 +14,7 @@ function loadHistory() {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     return parsed
-  } catch (error) {
+  } catch {
     return []
   }
 }
@@ -22,7 +23,8 @@ function saveHistory(history) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
-  } catch (error) {
+  } catch {
+    // Ignore storage write failures (private mode/quota).
   }
 }
 
@@ -86,19 +88,66 @@ function scoreAnswer(answer, question, advancedMode = false) {
   return { score: Math.round(total * 10) / 10, feedback }
 }
 
+function isCodingTask(question) {
+  return question?.taskType === 'coding'
+}
+
+function evaluateCodingSubmission(code, question) {
+  const normalizedCode = (code || '').trim()
+  const tests = question.sampleTests || []
+
+  if (!normalizedCode) {
+    return {
+      score: 0,
+      feedback: 'No solution submitted yet. Add your implementation and run tests.',
+      passRate: 0,
+      failedCasesSummary: 'No code submitted.',
+    }
+  }
+
+  if (!tests.length) {
+    const score = Math.min(10, Math.max(4, Math.round((normalizedCode.length / 80) * 10) / 10))
+    return {
+      score,
+      feedback: 'Solution captured. Add sample tests metadata for automated checks.',
+      passRate: 0,
+      failedCasesSummary: 'No sample tests configured for this task.',
+    }
+  }
+
+  const lowerCode = normalizedCode.toLowerCase()
+  const failedCases = tests.filter((test) => {
+    const snippets = test.requiredSnippets || []
+    return !snippets.every((snippet) => lowerCode.includes(String(snippet).toLowerCase()))
+  })
+
+  const passedCount = tests.length - failedCases.length
+  const passRate = Math.round((passedCount / tests.length) * 100)
+  const score = Math.round((Math.min(10, 3 + (passRate / 100) * 7)) * 10) / 10
+  const feedback =
+    passRate === 100
+      ? 'Great work! Your solution scaffold passed all configured sample checks.'
+      : 'Good progress. Iterate on your solution and address the failing sample cases.'
+
+  return {
+    score,
+    feedback,
+    passRate,
+    failedCasesSummary: failedCases.length
+      ? failedCases.map((test) => test.name || 'Unnamed case').join(', ')
+      : 'All sample cases passed.',
+  }
+}
+
 export function InterviewProvider({ children }) {
   const [selectedType, setSelectedType] = useState(QUESTION_TYPES.technical)
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState([])
-  const [history, setHistory] = useState([])
+  const [codeSubmissions, setCodeSubmissions] = useState({})
+  const [history, setHistory] = useState(() => loadHistory())
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
-
-  useEffect(() => {
-    const initialHistory = loadHistory()
-    setHistory(initialHistory)
-  }, [])
 
   useEffect(() => {
     saveHistory(history)
@@ -111,6 +160,7 @@ export function InterviewProvider({ children }) {
     setQuestions(list)
     setCurrentIndex(0)
     setAnswers(Array(list.length).fill(''))
+    setCodeSubmissions({})
     setLastResult(null)
   }
 
@@ -122,20 +172,36 @@ export function InterviewProvider({ children }) {
     })
   }
 
+  function updateCodeSubmission(code) {
+    const questionId = questions[currentIndex]?.id
+    if (!questionId) return
+    setCodeSubmissions((prev) => ({
+      ...prev,
+      [questionId]: code,
+    }))
+  }
+
   function computeResult() {
     if (!questions.length) {
       return null
     }
     const items = questions.map((question, index) => {
       const answer = answers[index] || ''
-      const scored = scoreAnswer(answer, question, advancedMode)
+      const code = codeSubmissions[question.id] || ''
+      const scored = isCodingTask(question)
+        ? evaluateCodingSubmission(code, question)
+        : scoreAnswer(answer, question, advancedMode)
       return {
         id: question.id,
         question: question.text,
         answer,
+        code,
         score: scored.score,
         feedback: scored.feedback,
+        passRate: scored.passRate ?? null,
+        failedCasesSummary: scored.failedCasesSummary ?? null,
         type: selectedType,
+        taskType: question.taskType || 'non-coding',
       }
     })
     const average =
@@ -170,39 +236,31 @@ export function InterviewProvider({ children }) {
   function resetInterview() {
     setQuestions([])
     setAnswers([])
+    setCodeSubmissions({})
     setCurrentIndex(0)
     setLastResult(null)
   }
 
-  const value = useMemo(
-    () => ({
-      selectedType,
-      setSelectedType,
-      questions,
-      currentIndex,
-      currentQuestion: questions[currentIndex] || null,
-      answers,
-      currentAnswer: answers[currentIndex] || '',
-      history,
-      lastResult,
-      advancedMode,
-      setAdvancedMode,
-      startInterview,
-      updateAnswer,
-      goToNext,
-      finishInterview,
-      resetInterview,
-    }),
-    [
-      selectedType,
-      questions,
-      currentIndex,
-      answers,
-      history,
-      lastResult,
-      advancedMode,
-    ],
-  )
+  const value = {
+    selectedType,
+    setSelectedType,
+    questions,
+    currentIndex,
+    currentQuestion: questions[currentIndex] || null,
+    answers,
+    currentAnswer: answers[currentIndex] || '',
+    currentCodeSubmission: codeSubmissions[questions[currentIndex]?.id] || '',
+    history,
+    lastResult,
+    advancedMode,
+    setAdvancedMode,
+    startInterview,
+    updateAnswer,
+    updateCodeSubmission,
+    goToNext,
+    finishInterview,
+    resetInterview,
+  }
 
   return (
     <InterviewContext.Provider value={value}>{children}</InterviewContext.Provider>
@@ -216,4 +274,3 @@ export function useInterview() {
   }
   return ctx
 }
-
