@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useInterview } from '../context/InterviewContext'
+import { useInterview } from '../context/useInterview'
 
 function Dashboard() {
   const navigate = useNavigate()
