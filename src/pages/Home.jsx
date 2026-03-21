@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useInterview } from '../context/InterviewContext'
+import { useInterview } from '../context/useInterview'
 
 function Home() {
   const navigate = useNavigate()

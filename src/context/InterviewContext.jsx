@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { questionsByType, QUESTION_TYPES } from '../data/questions'
-
-const InterviewContext = createContext(null)
+import {
+  DEFAULT_CODING_SETUP,
+  prepareQuestionsForSession,
+} from './interviewUtils'
+import InterviewContext from './interviewContextObject'
 
 const STORAGE_KEY = 'ai-interview-history'
 
@@ -13,7 +16,7 @@ function loadHistory() {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     return parsed
-  } catch (error) {
+  } catch {
     return []
   }
 }
@@ -22,7 +25,8 @@ function saveHistory(history) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
-  } catch (error) {
+  } catch {
+    // Ignore storage write failures.
   }
 }
 
@@ -57,17 +61,15 @@ function scoreAnswer(answer, question, advancedMode = false) {
   }
 
   if (advancedMode) {
-    // Advanced checks
     let advancedScore = 0
-    // Check for metrics/numbers
     if (/\d+/.test(trimmed)) advancedScore += 1
-    // Check for action verbs
+
     const actionVerbs = ['led', 'developed', 'implemented', 'improved', 'increased', 'reduced', 'managed', 'created', 'designed', 'built']
-    actionVerbs.forEach(verb => {
+    actionVerbs.forEach((verb) => {
       if (text.includes(verb)) advancedScore += 0.5
     })
     advancedScore = Math.min(2, advancedScore)
-    // Check for structure (paragraphs)
+
     const paragraphs = trimmed.split('\n\n').length
     if (paragraphs >= 2) advancedScore += 1
 
@@ -91,27 +93,43 @@ export function InterviewProvider({ children }) {
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState([])
-  const [history, setHistory] = useState([])
+  const [history, setHistory] = useState(() => loadHistory())
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
-
-  useEffect(() => {
-    const initialHistory = loadHistory()
-    setHistory(initialHistory)
-  }, [])
+  const [codingSetup, setCodingSetup] = useState(DEFAULT_CODING_SETUP)
 
   useEffect(() => {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
+  function startInterview(type, options = {}) {
     const nextType = type || QUESTION_TYPES.technical
-    const list = questionsByType[nextType] || []
+    const nextCodingSetup = {
+      ...codingSetup,
+      ...options,
+      topicTags: options.topicTags ?? codingSetup.topicTags,
+    }
+
+    const list = prepareQuestionsForSession(
+      nextType,
+      questionsByType[nextType] || [],
+      nextCodingSetup,
+    )
+
+    if (!list.length) {
+      return false
+    }
+
+    if (nextType === QUESTION_TYPES.coding) {
+      setCodingSetup(nextCodingSetup)
+    }
+
     setSelectedType(nextType)
     setQuestions(list)
     setCurrentIndex(0)
     setAnswers(Array(list.length).fill(''))
     setLastResult(null)
+    return true
   }
 
   function updateAnswer(text) {
@@ -174,46 +192,29 @@ export function InterviewProvider({ children }) {
     setLastResult(null)
   }
 
-  const value = useMemo(
-    () => ({
-      selectedType,
-      setSelectedType,
-      questions,
-      currentIndex,
-      currentQuestion: questions[currentIndex] || null,
-      answers,
-      currentAnswer: answers[currentIndex] || '',
-      history,
-      lastResult,
-      advancedMode,
-      setAdvancedMode,
-      startInterview,
-      updateAnswer,
-      goToNext,
-      finishInterview,
-      resetInterview,
-    }),
-    [
-      selectedType,
-      questions,
-      currentIndex,
-      answers,
-      history,
-      lastResult,
-      advancedMode,
-    ],
-  )
+  const value = {
+    selectedType,
+    setSelectedType,
+    questions,
+    currentIndex,
+    currentQuestion: questions[currentIndex] || null,
+    answers,
+    currentAnswer: answers[currentIndex] || '',
+    history,
+    lastResult,
+    advancedMode,
+    setAdvancedMode,
+    codingSetup,
+    setCodingSetup,
+    startInterview,
+    updateAnswer,
+    goToNext,
+    finishInterview,
+    resetInterview,
+  }
 
   return (
     <InterviewContext.Provider value={value}>{children}</InterviewContext.Provider>
   )
-}
-
-export function useInterview() {
-  const ctx = useContext(InterviewContext)
-  if (!ctx) {
-    throw new Error('useInterview must be used within InterviewProvider')
-  }
-  return ctx
 }
 
