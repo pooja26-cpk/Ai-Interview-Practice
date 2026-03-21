@@ -50,6 +50,7 @@ function Interview() {
     timeLeft,
     currentQuestion,
     questions.length,
+    questions,
     currentIndex,
     goToNext,
     finishInterview,
@@ -61,6 +62,7 @@ function Interview() {
       navigate('/setup')
     }
   }, [questions.length, navigate])
+  }, [questions, navigate])
 
   if (!currentQuestion) {
     return (
