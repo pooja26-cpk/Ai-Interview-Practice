@@ -59,10 +59,39 @@ export const questionsByType = {
     },
     {
       id: 'tech-3',
-      text: 'Describe a challenging technical problem you solved recently.',
+      text: 'Coding task: implement two-sum',
       category: 'problem-solving',
-      keywords: ['challenge', 'problem', 'solution', 'impact'],
-      timeLimit: 150,
+      taskType: 'coding',
+      timeLimit: 240,
+      problemStatement:
+        'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume each input has exactly one solution and you may not use the same element twice.',
+      constraints: [
+        '2 <= nums.length <= 10^4',
+        '-10^9 <= nums[i] <= 10^9',
+        '-10^9 <= target <= 10^9',
+      ],
+      examples: [
+        {
+          input: 'nums = [2,7,11,15], target = 9',
+          output: '[0,1]',
+        },
+        {
+          input: 'nums = [3,2,4], target = 6',
+          output: '[1,2]',
+        },
+      ],
+      starterCode:
+        'function twoSum(nums, target) {\n  // return [index1, index2]\n  return []\n}',
+      sampleTests: [
+        {
+          name: 'Uses a loop to inspect values',
+          requiredSnippets: ['for'],
+        },
+        {
+          name: 'Returns indices array',
+          requiredSnippets: ['return ['],
+        },
+      ],
     },
     {
       id: 'tech-4',
@@ -117,4 +146,3 @@ export const questionsByType = {
     },
   ],
 }
-

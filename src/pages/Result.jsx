@@ -95,7 +95,18 @@ function Result() {
                   <span className="question-score">{item.score.toFixed(1)}/10</span>
                 </div>
                 <p className="question-feedback">{item.feedback}</p>
-                <p className="question-answer">{item.answer || 'No answer recorded.'}</p>
+                {item.taskType === 'coding' ? (
+                  <>
+                    <p className="question-answer">
+                      Pass rate: {item.passRate ?? 0}%
+                    </p>
+                    <p className="question-answer">
+                      Failed cases: {item.failedCasesSummary || 'None'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="question-answer">{item.answer || 'No answer recorded.'}</p>
+                )}
               </li>
             ))}
           </ul>
