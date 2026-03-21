@@ -274,6 +274,92 @@
   margin-top: 1.5rem;
 }
 
+
+.trend-card,
+.recent-card {
+  margin-top: 0.25rem;
+}
+
+.trend-label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.trend-bars {
+  height: 170px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.trend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.trend-bar {
+  width: 100%;
+  border-radius: 0.7rem 0.7rem 0.3rem 0.3rem;
+  min-height: 8%;
+  background: linear-gradient(180deg, #38bdf8, #6366f1);
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+}
+
+.trend-value {
+  font-size: 0.78rem;
+  color: #d1d5db;
+}
+
+.trend-delta {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.delta-indicator {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+}
+
+.delta-positive {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.55);
+  color: #86efac;
+}
+
+.delta-negative {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fca5a5;
+}
+
+.delta-neutral {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.5);
+  color: #cbd5e1;
+}
+
+.empty-inline {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #9ca3af;
+}
+
+.type-insights-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .history-header {
   display: flex;
   align-items: center;
@@ -643,6 +729,10 @@
 
 @media (max-width: 768px) {
   .card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .type-insights-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
