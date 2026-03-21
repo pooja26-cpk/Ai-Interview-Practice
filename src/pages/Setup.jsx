@@ -1,17 +1,64 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInterview } from '../context/InterviewContext'
 import { QUESTION_TYPES } from '../data/questions'
 
+const TOPIC_OPTIONS = [
+  'javascript',
+  'async',
+  'api',
+  'architecture',
+  'scalability',
+  'debugging',
+  'problem-solving',
+  'testing',
+  'quality',
+  'microservices',
+]
+
 function Setup() {
   const navigate = useNavigate()
-  const { selectedType, setSelectedType, startInterview, advancedMode, setAdvancedMode } = useInterview()
+  const {
+    selectedType,
+    setSelectedType,
+    startInterview,
+    advancedMode,
+    setAdvancedMode,
+    codingSetup,
+    setCodingSetup,
+  } = useInterview()
   const [type, setType] = useState(selectedType)
+  const [difficulty, setDifficulty] = useState(codingSetup.difficulty)
+  const [language, setLanguage] = useState(codingSetup.language)
+  const [topics, setTopics] = useState(codingSetup.topics)
+  const [mode, setMode] = useState(codingSetup.mode)
+
+  const isCoding = type === QUESTION_TYPES.technical
+  const topicSet = useMemo(() => new Set(topics), [topics])
+
+  function toggleTopic(topic) {
+    if (topicSet.has(topic)) {
+      setTopics((prev) => prev.filter((item) => item !== topic))
+      return
+    }
+    setTopics((prev) => [...prev, topic])
+  }
 
   function handleSubmit(event) {
     event.preventDefault()
     setSelectedType(type)
-    startInterview(type)
+    if (isCoding) {
+      const nextCodingSetup = {
+        difficulty,
+        language,
+        topics,
+        mode,
+      }
+      setCodingSetup(nextCodingSetup)
+      startInterview(type, nextCodingSetup)
+    } else {
+      startInterview(type)
+    }
     navigate('/interview')
   }
 
@@ -69,6 +116,70 @@ function Setup() {
             </button>
           </div>
         </div>
+
+        {isCoding && (
+          <>
+            <div className="field-group">
+              <label className="field-label" htmlFor="difficulty">Difficulty</label>
+              <select
+                id="difficulty"
+                className="answer-input"
+                value={difficulty}
+                onChange={(event) => setDifficulty(event.target.value)}
+              >
+                <option value="any">Any</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label" htmlFor="language">Language</label>
+              <select
+                id="language"
+                className="answer-input"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+              >
+                <option value="any">Any</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label">Optional topics / tags</label>
+              <div className="option-grid">
+                {TOPIC_OPTIONS.map((topic) => (
+                  <button
+                    key={topic}
+                    type="button"
+                    className={topicSet.has(topic) ? 'option-card option-card-active' : 'option-card'}
+                    onClick={() => toggleTopic(topic)}
+                  >
+                    <span className="option-title">{topic}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label" htmlFor="mode">Mode</label>
+              <select
+                id="mode"
+                className="answer-input"
+                value={mode}
+                onChange={(event) => setMode(event.target.value)}
+              >
+                <option value="timed">Timed</option>
+                <option value="untimed">Untimed</option>
+              </select>
+            </div>
+          </>
+        )}
+
         <div className="field-group">
           <label className="field-label">
             <input
@@ -100,4 +211,3 @@ function Setup() {
 }
 
 export default Setup
-

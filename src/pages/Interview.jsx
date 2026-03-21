@@ -22,13 +22,14 @@ function Interview() {
     finishInterview,
   } = useInterview()
   const [timeLeft, setTimeLeft] = useState(
-    currentQuestion ? currentQuestion.timeLimit || 90 : 0,
+    currentQuestion && typeof currentQuestion.timeLimit === 'number'
+      ? currentQuestion.timeLimit
+      : 0,
   )
-
-  // Reset handled via user actions and timer tick to avoid synchronous setState in effects
+  const isTimed = typeof currentQuestion?.timeLimit === 'number' && currentQuestion.timeLimit > 0
 
   useEffect(() => {
-    if (!currentQuestion || !questions.length) {
+    if (!currentQuestion || !questions.length || !isTimed) {
       return
     }
     const id = setTimeout(() => {
@@ -36,7 +37,7 @@ function Interview() {
         if (currentIndex < questions.length - 1) {
           const nextQuestion = questions[currentIndex + 1]
           goToNext()
-          setTimeLeft(nextQuestion?.timeLimit || 90)
+          setTimeLeft(nextQuestion?.timeLimit || 0)
         } else {
           finishInterview()
           navigate('/result')
@@ -51,6 +52,7 @@ function Interview() {
     currentQuestion,
     questions.length,
     currentIndex,
+    isTimed,
     goToNext,
     finishInterview,
     navigate,
@@ -90,7 +92,7 @@ function Interview() {
       return
     }
     const nextQuestion = questions[currentIndex + 1]
-    setTimeLeft(nextQuestion?.timeLimit || 90)
+    setTimeLeft(nextQuestion?.timeLimit || 0)
     goToNext()
   }
 
@@ -108,9 +110,9 @@ function Interview() {
           <div className="badge">
             Question {currentIndex + 1} of {questions.length}
           </div>
-          <div className="timer" data-status={timeLeft <= 10 ? 'danger' : 'default'}>
+          <div className="timer" data-status={isTimed && timeLeft <= 10 ? 'danger' : 'default'}>
             <span className="timer-label">Time left</span>
-            <span className="timer-value">{formatTime(timeLeft)}</span>
+            <span className="timer-value">{isTimed ? formatTime(timeLeft) : 'Untimed'}</span>
           </div>
         </div>
         <div className="progress-track">
