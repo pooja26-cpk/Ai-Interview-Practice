@@ -68,6 +68,20 @@ function Setup() {
               </span>
             </button>
           </div>
+           <button
+              type="button"
+              className={
+                type === QUESTION_TYPES.coding
+                  ? 'option-card option-card-active'
+                  : 'option-card'
+              }
+              onClick={() => setType(QUESTION_TYPES.coding)}
+            >
+              <span className="option-title">Coding</span>
+              <span className="option-description">
+                Algorithm prompts with topic tags and difficulty tracking.
+              </span>
+            </button>
         </div>
         <div className="field-group">
           <label className="field-label">
