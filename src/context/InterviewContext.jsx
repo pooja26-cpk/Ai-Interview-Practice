@@ -4,6 +4,20 @@ import { questionsByType, QUESTION_TYPES } from '../data/questions'
 const InterviewContext = createContext(null)
 
 const STORAGE_KEY = 'ai-interview-history'
+const DEFAULT_CODING_SETUP = {
+  difficulty: 'any',
+  language: 'any',
+  topics: [],
+  mode: 'timed',
+}
+
+const CODING_TASK_METADATA = {
+  'tech-1': { difficulty: 'easy', language: 'javascript', topics: ['javascript', 'async'] },
+  'tech-2': { difficulty: 'hard', language: 'any', topics: ['api', 'architecture', 'scalability'] },
+  'tech-3': { difficulty: 'medium', language: 'any', topics: ['debugging', 'problem-solving'] },
+  'tech-4': { difficulty: 'medium', language: 'any', topics: ['testing', 'quality'] },
+  'tech-5': { difficulty: 'hard', language: 'any', topics: ['architecture', 'microservices'] },
+}
 
 function loadHistory() {
   if (typeof window === 'undefined') return []
@@ -94,6 +108,7 @@ export function InterviewProvider({ children }) {
   const [history, setHistory] = useState([])
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
+  const [codingSetup, setCodingSetup] = useState(DEFAULT_CODING_SETUP)
 
   useEffect(() => {
     const initialHistory = loadHistory()
@@ -104,13 +119,62 @@ export function InterviewProvider({ children }) {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
+  function startInterview(type, setupOptions) {
     const nextType = type || QUESTION_TYPES.technical
     const list = questionsByType[nextType] || []
+    const resolvedCodingSetup = {
+      ...codingSetup,
+      ...(setupOptions || {}),
+    }
+
+    let selectedQuestions = list
+    if (nextType === QUESTION_TYPES.technical) {
+      setCodingSetup(resolvedCodingSetup)
+      selectedQuestions = list
+        .map((question) => ({
+          ...question,
+          codingMeta: CODING_TASK_METADATA[question.id] || {
+            difficulty: 'medium',
+            language: 'any',
+            topics: [question.category],
+          },
+        }))
+        .filter((question) => {
+          const { difficulty, language, topics } = resolvedCodingSetup
+          if (difficulty !== 'any' && question.codingMeta.difficulty !== difficulty) {
+            return false
+          }
+          if (
+            language !== 'any' &&
+            question.codingMeta.language !== 'any' &&
+            question.codingMeta.language !== language
+          ) {
+            return false
+          }
+          if (topics?.length) {
+            return topics.some((topic) => question.codingMeta.topics.includes(topic))
+          }
+          return true
+        })
+        .map((question) => {
+          if (resolvedCodingSetup.mode === 'untimed') {
+            return {
+              ...question,
+              timeLimit: null,
+            }
+          }
+          return question
+        })
+
+      if (!selectedQuestions.length) {
+        selectedQuestions = list
+      }
+    }
+
     setSelectedType(nextType)
-    setQuestions(list)
+    setQuestions(selectedQuestions)
     setCurrentIndex(0)
-    setAnswers(Array(list.length).fill(''))
+    setAnswers(Array(selectedQuestions.length).fill(''))
     setLastResult(null)
   }
 
@@ -187,6 +251,8 @@ export function InterviewProvider({ children }) {
       lastResult,
       advancedMode,
       setAdvancedMode,
+      codingSetup,
+      setCodingSetup,
       startInterview,
       updateAnswer,
       goToNext,
@@ -201,6 +267,7 @@ export function InterviewProvider({ children }) {
       history,
       lastResult,
       advancedMode,
+      codingSetup,
     ],
   )
 
@@ -216,4 +283,3 @@ export function useInterview() {
   }
   return ctx
 }
-
