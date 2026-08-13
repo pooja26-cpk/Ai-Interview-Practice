@@ -21,48 +21,36 @@ function Interview() {
     goToNext,
     finishInterview,
   } = useInterview()
-  const [timeLeft, setTimeLeft] = useState(
-    currentQuestion ? currentQuestion.timeLimit || 90 : 0,
-  )
-
-  // Reset handled via user actions and timer tick to avoid synchronous setState in effects
+  const [timeLeft, setTimeLeft] = useState(currentQuestion ? currentQuestion.timeLimit || 90 : 0)
 
   useEffect(() => {
     if (!currentQuestion || !questions.length) {
-      return
+      return undefined
     }
+
     const id = setTimeout(() => {
       if (timeLeft <= 1) {
         if (currentIndex < questions.length - 1) {
           const nextQuestion = questions[currentIndex + 1]
-          goToNext()
           setTimeLeft(nextQuestion?.timeLimit || 90)
+          goToNext()
         } else {
           finishInterview()
           navigate('/result')
         }
       } else {
-        setTimeLeft(timeLeft - 1)
+        setTimeLeft((seconds) => seconds - 1)
       }
     }, 1000)
+
     return () => clearTimeout(id)
-  }, [
-    timeLeft,
-    currentQuestion,
-    questions.length,
-    questions,
-    currentIndex,
-    goToNext,
-    finishInterview,
-    navigate,
-  ])
+  }, [timeLeft, currentQuestion, questions, questions.length, currentIndex, goToNext, finishInterview, navigate])
 
   useEffect(() => {
     if (!questions.length) {
       navigate('/setup')
     }
   }, [questions.length, navigate])
-  }, [questions, navigate])
 
   if (!currentQuestion) {
     return (
@@ -70,11 +58,7 @@ function Interview() {
         <div className="card">
           <h1>No active interview</h1>
           <p>Set up an interview to start practicing.</p>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => navigate('/setup')}
-          >
+          <button className="primary-button" type="button" onClick={() => navigate('/setup')}>
             Go to setup
           </button>
         </div>
@@ -100,10 +84,7 @@ function Interview() {
     <div className="page">
       <div className="page-header">
         <h1>Interview in progress</h1>
-        <p>
-          Answer each question before the timer runs out. Focus on structure and
-          clarity.
-        </p>
+        <p>Answer each question before the timer runs out. Focus on structure and clarity.</p>
       </div>
       <div className="card interview-card">
         <div className="interview-header">
@@ -119,6 +100,7 @@ function Interview() {
           <div className="progress-bar" style={{ width: `${progress}%` }} />
         </div>
         <h2 className="question-text">{currentQuestion.text}</h2>
+        {currentQuestion.prompt && <p className="question-prompt">{currentQuestion.prompt}</p>}
         <label className="field-label" htmlFor="answer">
           Your answer
         </label>
@@ -131,18 +113,10 @@ function Interview() {
           placeholder="Use clear structure, examples, and outcomes."
         />
         <div className="form-footer">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => navigate('/setup')}
-          >
+          <button className="secondary-button" type="button" onClick={() => navigate('/setup')}>
             End session
           </button>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={handleNext}
-          >
+          <button className="primary-button" type="button" onClick={handleNext}>
             {isLast ? 'Finish interview' : 'Next question'}
           </button>
         </div>

@@ -1,4 +1,3 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { questionsByType, QUESTION_TYPES } from '../data/questions'
@@ -54,8 +53,8 @@ function normalizeHistoryEntry(entry) {
   const averageScore = Number.isFinite(entry.averageScore)
     ? entry.averageScore
     : Math.round(
-        (items.reduce((sum, item) => sum + item.score, 0) /
-          Math.max(items.length, 1)) * 10,
+        (items.reduce((sum, item) => sum + item.score, 0) / Math.max(items.length, 1)) *
+          10,
       ) / 10
 
   const analytics = {
@@ -82,8 +81,6 @@ function loadHistory() {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch (error) {
     return parsed.map((entry) => normalizeHistoryEntry(entry)).filter(Boolean)
   } catch {
     return []
@@ -94,7 +91,6 @@ function saveHistory(history) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
-  } catch (error) {
   } catch {
     // Ignore storage write failures (private mode, quota, etc.)
   }
@@ -108,20 +104,23 @@ function scoreAnswer(answer, question, advancedMode = false) {
       feedback: 'Try to provide a structured answer that covers key points.',
     }
   }
+
   const words = trimmed.split(/\s+/).length
   const baseScore = Math.min(6, Math.floor(words / 35) + 2)
   const text = trimmed.toLowerCase()
   const keywords = question.keywords || []
   let keywordMatches = 0
+
   keywords.forEach((keyword) => {
     if (text.includes(keyword.toLowerCase())) {
       keywordMatches += 1
     }
   })
-  const keywordScore = Math.min(4, keywordMatches)
 
+  const keywordScore = Math.min(4, keywordMatches)
   let total = Math.min(10, baseScore + keywordScore)
   let feedback
+
   if (total >= 8) {
     feedback = 'Strong answer with clear structure and relevant examples.'
   } else if (total >= 5) {
@@ -131,30 +130,40 @@ function scoreAnswer(answer, question, advancedMode = false) {
   }
 
   if (advancedMode) {
-    // Advanced checks
     let advancedScore = 0
-    // Check for metrics/numbers
     if (/\d+/.test(trimmed)) advancedScore += 1
-    // Check for action verbs
-    const actionVerbs = ['led', 'developed', 'implemented', 'improved', 'increased', 'reduced', 'managed', 'created', 'designed', 'built']
-    actionVerbs.forEach(verb => {
+
+    const actionVerbs = [
+      'led',
+      'developed',
+      'implemented',
+      'improved',
+      'increased',
+      'reduced',
+      'managed',
+      'created',
+      'designed',
+      'built',
+    ]
     actionVerbs.forEach((verb) => {
       if (text.includes(verb)) advancedScore += 0.5
     })
+
     advancedScore = Math.min(2, advancedScore)
-    // Check for structure (paragraphs)
-    const paragraphs = trimmed.split('\n\n').length
+    const paragraphs = trimmed.split('\n\n').filter(Boolean).length
     if (paragraphs >= 2) advancedScore += 1
 
     total = Math.min(10, total + advancedScore)
     if (total >= 8) {
-      feedback = 'Excellent answer with strong structure, relevant examples, and quantifiable achievements.'
+      feedback =
+        'Excellent answer with strong structure, relevant examples, and quantifiable achievements.'
     } else if (total >= 6) {
       feedback = 'Good answer. Consider adding specific metrics and action-oriented language.'
     } else if (total >= 4) {
       feedback = 'Decent start. Focus on structure, include examples, and use data where possible.'
     } else {
-      feedback = 'Work on structuring your answer, covering key points, and incorporating concrete examples.'
+      feedback =
+        'Work on structuring your answer, covering key points, and incorporating concrete examples.'
     }
   }
 
@@ -185,13 +194,9 @@ function filterQuestions(list, filters = {}) {
     }
     if (normalizedTags && normalizedTags.size) {
       const tags = normalizeTopicTags(question).map((tag) => tag.toLowerCase())
-      const hasTag = tags.some((tag) => normalizedTags.has(tag))
-      if (!hasTag) return false
+      if (!tags.some((tag) => normalizedTags.has(tag))) return false
     }
-    if (
-      normalizedDifficulty &&
-      normalizeDifficulty(question).toLowerCase() !== normalizedDifficulty
-    ) {
+    if (normalizedDifficulty && normalizeDifficulty(question).toLowerCase() !== normalizedDifficulty) {
       return false
     }
     return true
@@ -203,52 +208,37 @@ export function InterviewProvider({ children }) {
   const [questions, setQuestions] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState([])
-  const [history, setHistory] = useState([])
   const [history, setHistory] = useState(() => loadHistory())
   const [lastResult, setLastResult] = useState(null)
   const [advancedMode, setAdvancedMode] = useState(false)
-
-  useEffect(() => {
-    const initialHistory = loadHistory()
-    setHistory(initialHistory)
-  }, [])
   const [activePracticeConfig, setActivePracticeConfig] = useState(null)
 
   useEffect(() => {
     saveHistory(history)
   }, [history])
 
-  function startInterview(type) {
   const startInterview = useCallback((type, config = {}) => {
     const nextType = type || QUESTION_TYPES.technical
-    const list = questionsByType[nextType] || []
     const sourceList = questionsByType[nextType] || []
     const filtered = filterQuestions(sourceList, config)
-    const list = filtered.length ? filtered : sourceList
+    const nextQuestions = filtered.length ? filtered : sourceList
+
     setSelectedType(nextType)
-    setQuestions(list)
+    setQuestions(nextQuestions)
     setCurrentIndex(0)
-    setAnswers(Array(list.length).fill(''))
+    setAnswers(Array(nextQuestions.length).fill(''))
     setLastResult(null)
-  }
     setActivePracticeConfig(
       Object.keys(config).length
         ? {
             ...config,
             type: nextType,
-            questionIds: list.map((question) => question.id),
+            questionIds: nextQuestions.map((question) => question.id),
           }
         : null,
     )
   }, [])
 
-  function updateAnswer(text) {
-    setAnswers((prev) => {
-      const copy = [...prev]
-      copy[currentIndex] = text
-      return copy
-    })
-  }
   const updateAnswer = useCallback(
     (text) => {
       setAnswers((prev) => {
@@ -260,16 +250,15 @@ export function InterviewProvider({ children }) {
     [currentIndex],
   )
 
-  function computeResult() {
   const computeResult = useCallback(() => {
-    if (!questions.length) {
-      return null
-    }
+    if (!questions.length) return null
+
     const items = questions.map((question, index) => {
       const answer = answers[index] || ''
       const scored = scoreAnswer(answer, question, advancedMode)
       const topicTags = normalizeTopicTags(question, selectedType)
       const difficulty = normalizeDifficulty(question, selectedType)
+
       return {
         id: question.id,
         question: question.text,
@@ -283,11 +272,9 @@ export function InterviewProvider({ children }) {
         passed: scored.score >= PASSING_SCORE,
       }
     })
-    const average =
-      items.reduce((sum, item) => sum + item.score, 0) /
-      Math.max(items.length, 1)
+    const average = items.reduce((sum, item) => sum + item.score, 0) / Math.max(items.length, 1)
     const rounded = Math.round(average * 10) / 10
-    const result = {
+
     return {
       id: `${Date.now()}`,
       type: selectedType,
@@ -301,11 +288,8 @@ export function InterviewProvider({ children }) {
         practiceMode: activePracticeConfig?.label || 'full-session',
       },
     }
-    return result
-  }
   }, [activePracticeConfig, advancedMode, answers, questions, selectedType])
 
-  function goToNext() {
   const finishInterview = useCallback(() => {
     const result = computeResult()
     if (!result) return
@@ -320,23 +304,13 @@ export function InterviewProvider({ children }) {
     } else {
       finishInterview()
     }
-  }
   }, [currentIndex, finishInterview, questions.length])
 
-  function finishInterview() {
-    const result = computeResult()
-    if (!result) return
-    setLastResult(result)
-    setHistory((prev) => [...prev, result])
-  }
-
-  function resetInterview() {
   const resetInterview = useCallback(() => {
     setQuestions([])
     setAnswers([])
     setCurrentIndex(0)
     setLastResult(null)
-  }
     setActivePracticeConfig(null)
   }, [])
 
@@ -377,9 +351,7 @@ export function InterviewProvider({ children }) {
     ],
   )
 
-  return (
-    <InterviewContext.Provider value={value}>{children}</InterviewContext.Provider>
-  )
+  return <InterviewContext.Provider value={value}>{children}</InterviewContext.Provider>
 }
 
 export function useInterview() {
